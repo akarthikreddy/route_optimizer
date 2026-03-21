@@ -4,7 +4,7 @@ part 'woo_order.freezed.dart';
 part 'woo_order.g.dart';
 
 @freezed
-class WooOrder with _$WooOrder {
+abstract class WooOrder with _$WooOrder {
   const factory WooOrder({
     required int id,
     required String status,
@@ -19,7 +19,7 @@ class WooOrder with _$WooOrder {
 }
 
 @freezed
-class WooBilling with _$WooBilling {
+abstract class WooBilling with _$WooBilling {
   const factory WooBilling({
     @JsonKey(name: 'first_name') @Default('') String firstName,
     @JsonKey(name: 'last_name') @Default('') String lastName,
@@ -53,7 +53,7 @@ extension WooBillingX on WooBilling {
 }
 
 @freezed
-class WooLineItem with _$WooLineItem {
+abstract class WooLineItem with _$WooLineItem {
   const factory WooLineItem({
     required int id,
     required String name,

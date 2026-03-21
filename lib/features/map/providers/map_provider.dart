@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/driver_route.dart';
@@ -7,8 +8,8 @@ import '../services/geocoding_service.dart';
 import '../services/osrm_service.dart';
 import '../services/vrp_solver.dart';
 import '../../config/providers/config_provider.dart';
+import '../../orders/models/woo_order.dart';
 import '../../orders/providers/orders_provider.dart';
-import '../../orders/services/woocommerce_service.dart';
 
 part 'map_provider.g.dart';
 
@@ -16,19 +17,18 @@ part 'map_provider.g.dart';
 const storeLocation = LatLng(17.3850, 78.4867);
 
 @riverpod
-GeocodingService geocodingService(GeocodingServiceRef ref) =>
-    GeocodingService();
+GeocodingService geocodingService(Ref ref) => GeocodingService();
 
 @riverpod
-OsrmService osrmService(OsrmServiceRef ref) => OsrmService();
+OsrmService osrmService(Ref ref) => OsrmService();
 
 @riverpod
-VrpSolver vrpSolver(VrpSolverRef ref) =>
+VrpSolver vrpSolver(Ref ref) =>
     VrpSolver(osrmService: ref.watch(osrmServiceProvider));
 
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 @riverpod
-Future<List<GeocodedOrder>> geocodedOrders(GeocodedOrdersRef ref) async {
+Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
   final orderList = await ref.watch(ordersProvider.future);
   final geocoder = ref.watch(geocodingServiceProvider);
 
@@ -51,7 +51,7 @@ class RouteState extends _$RouteState {
   @override
   Future<List<DriverRoute>> build() async {
     final geocoded = await ref.watch(geocodedOrdersProvider.future);
-    final config = await ref.watch(configNotifierProvider.future);
+    final config = await ref.watch(configProvider.future);
     final solver = ref.watch(vrpSolverProvider);
 
     if (geocoded.isEmpty) return [];
@@ -68,7 +68,7 @@ class RouteState extends _$RouteState {
     required int driverIndex,
     required int stopIndex,
   }) async {
-    final routes = state.valueOrNull;
+    final routes = state.value;
     if (routes == null) return;
 
     final driver = routes[driverIndex];

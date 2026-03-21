@@ -8,15 +8,14 @@ import 'features/orders/screens/orders_screen.dart';
 import 'features/map/screens/map_screen.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
-  final configAsync = ref.watch(configNotifierProvider);
+  final configAsync = ref.watch(configProvider);
 
   return GoRouter(
     initialLocation: '/orders',
     redirect: (context, state) {
-      // Wait until config is loaded
       if (configAsync.isLoading) return null;
 
-      final isConfigured = ref.read(configNotifierProvider.notifier).isConfigured;
+      final isConfigured = ref.read(configProvider.notifier).isConfigured;
       if (!isConfigured && state.matchedLocation != '/config') {
         return '/config';
       }

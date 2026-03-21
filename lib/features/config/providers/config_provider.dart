@@ -28,7 +28,7 @@ class ConfigNotifier extends _$ConfigNotifier {
   }
 
   bool get isConfigured {
-    final cfg = state.valueOrNull;
+    final cfg = state.value;
     if (cfg == null) return false;
     return cfg.wooBaseUrl.isNotEmpty &&
         cfg.consumerKey.isNotEmpty &&

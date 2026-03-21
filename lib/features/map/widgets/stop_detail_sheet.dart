@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../models/driver_route.dart';
 import '../models/route_stop.dart';
 import '../providers/map_provider.dart';
+import '../../orders/models/woo_order.dart';
 
 class StopDetailSheet extends ConsumerStatefulWidget {
   const StopDetailSheet({

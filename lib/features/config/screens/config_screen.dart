@@ -26,7 +26,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   @override
   void initState() {
     super.initState();
-    final config = ref.read(configNotifierProvider).valueOrNull;
+    final config = ref.read(configProvider).value;
     if (config != null) {
       _urlCtrl.text = config.wooBaseUrl;
       _keyCtrl.text = config.consumerKey;
@@ -58,7 +58,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       kmCapPerDriver: double.parse(_kmCtrl.text.trim()),
     );
 
-    await ref.read(configNotifierProvider.notifier).save(config);
+    await ref.read(configProvider.notifier).save(config);
     setState(() => _saving = false);
 
     if (mounted) context.go('/orders');

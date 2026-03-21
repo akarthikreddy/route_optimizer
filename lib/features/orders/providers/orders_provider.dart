@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/woo_order.dart';
 import '../services/woocommerce_service.dart';
 import '../../config/providers/config_provider.dart';
@@ -6,8 +7,8 @@ import '../../config/providers/config_provider.dart';
 part 'orders_provider.g.dart';
 
 @riverpod
-WooCommerceService wooCommerceService(WooCommerceServiceRef ref) {
-  final config = ref.watch(configNotifierProvider).valueOrNull;
+WooCommerceService wooCommerceService(Ref ref) {
+  final config = ref.watch(configProvider).value;
   if (config == null) {
     throw StateError('Config not loaded');
   }
@@ -19,7 +20,7 @@ WooCommerceService wooCommerceService(WooCommerceServiceRef ref) {
 }
 
 @riverpod
-Future<List<WooOrder>> orders(OrdersRef ref) async {
+Future<List<WooOrder>> orders(Ref ref) async {
   final service = ref.watch(wooCommerceServiceProvider);
   return service.fetchProcessingOrders();
 }
