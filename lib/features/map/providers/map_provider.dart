@@ -13,9 +13,6 @@ import '../../orders/providers/orders_provider.dart';
 
 part 'map_provider.g.dart';
 
-/// Store location — update this to your actual store coordinates.
-const storeLocation = LatLng(17.3850, 78.4867);
-
 @riverpod
 GeocodingService geocodingService(Ref ref) => GeocodingService();
 
@@ -56,11 +53,13 @@ class RouteState extends _$RouteState {
 
     if (geocoded.isEmpty) return [];
 
+    final depot = LatLng(config.storeLat, config.storeLng);
+
     return solver.optimize(
       orders: geocoded,
       driverCount: config.driverCount,
       kmCapPerDriver: config.kmCapPerDriver,
-      depot: storeLocation,
+      depot: depot,
     );
   }
 
@@ -74,11 +73,9 @@ class RouteState extends _$RouteState {
     final driver = routes[driverIndex];
     final stop = driver.stops[stopIndex];
 
-    // Call WooCommerce API
-    final service = ref.read(wooCommerceServiceProvider);
+    final service = await ref.read(wooCommerceServiceProvider.future);
     await service.markAsDelivered(stop.order.id);
 
-    // Update local state optimistically
     final updatedStops = List<RouteStop>.from(driver.stops);
     updatedStops[stopIndex] = stop.copyWith(isDelivered: true);
 

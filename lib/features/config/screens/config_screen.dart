@@ -14,13 +14,11 @@ class ConfigScreen extends ConsumerStatefulWidget {
 
 class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _urlCtrl = TextEditingController();
-  final _keyCtrl = TextEditingController();
-  final _secretCtrl = TextEditingController();
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
   final _driversCtrl = TextEditingController(text: '3');
   final _kmCtrl = TextEditingController(text: '50');
 
-  bool _secretObscured = true;
   bool _saving = false;
 
   @override
@@ -28,9 +26,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     super.initState();
     final config = ref.read(configProvider).value;
     if (config != null) {
-      _urlCtrl.text = config.wooBaseUrl;
-      _keyCtrl.text = config.consumerKey;
-      _secretCtrl.text = config.consumerSecret;
+      if (config.storeLat != 0.0) _latCtrl.text = config.storeLat.toString();
+      if (config.storeLng != 0.0) _lngCtrl.text = config.storeLng.toString();
       _driversCtrl.text = config.driverCount.toString();
       _kmCtrl.text = config.kmCapPerDriver.toString();
     }
@@ -38,9 +35,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
   @override
   void dispose() {
-    _urlCtrl.dispose();
-    _keyCtrl.dispose();
-    _secretCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
     _driversCtrl.dispose();
     _kmCtrl.dispose();
     super.dispose();
@@ -51,9 +47,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     setState(() => _saving = true);
 
     final config = AppConfig(
-      wooBaseUrl: _urlCtrl.text.trim().replaceAll(RegExp(r'/$'), ''),
-      consumerKey: _keyCtrl.text.trim(),
-      consumerSecret: _secretCtrl.text.trim(),
+      storeLat: double.parse(_latCtrl.text.trim()),
+      storeLng: double.parse(_lngCtrl.text.trim()),
       driverCount: int.parse(_driversCtrl.text.trim()),
       kmCapPerDriver: double.parse(_kmCtrl.text.trim()),
     );
@@ -75,41 +70,63 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionHeader('WooCommerce API'),
-              const SizedBox(height: 12),
-              _buildField(
-                controller: _urlCtrl,
-                label: 'Store URL',
-                hint: 'https://yourstore.com',
-                validator: (v) =>
-                    (v?.isEmpty ?? true) ? 'Required' : null,
-                keyboardType: TextInputType.url,
+              _SectionHeader('Store Location'),
+              const SizedBox(height: 4),
+              Text(
+                'Enter the GPS coordinates of your store / warehouse.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
-              _buildField(
-                controller: _keyCtrl,
-                label: 'Consumer Key',
-                hint: 'ck_xxxxxxxxxxxxxxxx',
-                validator: (v) =>
-                    (v?.isEmpty ?? true) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _secretCtrl,
-                obscureText: _secretObscured,
-                decoration: InputDecoration(
-                  labelText: 'Consumer Secret',
-                  hintText: 'cs_xxxxxxxxxxxxxxxx',
-                  suffixIcon: IconButton(
-                    icon: Icon(_secretObscured
-                        ? Icons.visibility_off
-                        : Icons.visibility),
-                    onPressed: () =>
-                        setState(() => _secretObscured = !_secretObscured),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildField(
+                      controller: _latCtrl,
+                      label: 'Latitude',
+                      hint: '17.3850',
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      validator: (v) {
+                        final n = double.tryParse(v ?? '');
+                        if (n == null || n < -90 || n > 90) {
+                          return '-90 to 90';
+                        }
+                        return null;
+                      },
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildField(
+                      controller: _lngCtrl,
+                      label: 'Longitude',
+                      hint: '78.4867',
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      validator: (v) {
+                        final n = double.tryParse(v ?? '');
+                        if (n == null || n < -180 || n > 180) {
+                          return '-180 to 180';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Quick tip to get coordinates
+              InkWell(
+                onTap: () {},
+                child: Text(
+                  '💡 Tip: Open Google Maps, long-press your store → coordinates appear at the top.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.brand,
+                      ),
                 ),
-                validator: (v) =>
-                    (v?.isEmpty ?? true) ? 'Required' : null,
               ),
               const SizedBox(height: 28),
               _SectionHeader('Driver Settings'),
@@ -124,9 +141,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       keyboardType: TextInputType.number,
                       validator: (v) {
                         final n = int.tryParse(v ?? '');
-                        if (n == null || n < 1 || n > 20) {
-                          return '1 – 20';
-                        }
+                        if (n == null || n < 1 || n > 20) return '1 – 20';
                         return null;
                       },
                     ),
@@ -137,8 +152,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       controller: _kmCtrl,
                       label: 'KM Cap / Driver',
                       hint: '50',
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
                       validator: (v) {
                         final n = double.tryParse(v ?? '');
                         if (n == null || n <= 0) return 'Must be > 0';

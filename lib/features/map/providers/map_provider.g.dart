@@ -204,7 +204,7 @@ final class RouteStateProvider
   RouteState create() => RouteState();
 }
 
-String _$routeStateHash() => r'438bd995a2e0758ee72942a4caff0db160f6607f';
+String _$routeStateHash() => r'497b4a996b87f99640b7c386efba382a2fad0246';
 
 /// Manages the optimized route state and handles marking stops as delivered.
 

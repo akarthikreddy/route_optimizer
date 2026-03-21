@@ -13,9 +13,12 @@ part of 'orders_provider.dart';
 final wooCommerceServiceProvider = WooCommerceServiceProvider._();
 
 final class WooCommerceServiceProvider extends $FunctionalProvider<
-    WooCommerceService,
-    WooCommerceService,
-    WooCommerceService> with $Provider<WooCommerceService> {
+        AsyncValue<WooCommerceService>,
+        WooCommerceService,
+        FutureOr<WooCommerceService>>
+    with
+        $FutureModifier<WooCommerceService>,
+        $FutureProvider<WooCommerceService> {
   WooCommerceServiceProvider._()
       : super(
           from: null,
@@ -32,26 +35,18 @@ final class WooCommerceServiceProvider extends $FunctionalProvider<
 
   @$internal
   @override
-  $ProviderElement<WooCommerceService> $createElement(
+  $FutureProviderElement<WooCommerceService> $createElement(
           $ProviderPointer pointer) =>
-      $ProviderElement(pointer);
+      $FutureProviderElement(pointer);
 
   @override
-  WooCommerceService create(Ref ref) {
+  FutureOr<WooCommerceService> create(Ref ref) {
     return wooCommerceService(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WooCommerceService value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<WooCommerceService>(value),
-    );
   }
 }
 
 String _$wooCommerceServiceHash() =>
-    r'4a2e33e04b2d607fbac8f83f93599444d76a6dc6';
+    r'b5d27519777274f11765f5a3153e87058663a584';
 
 @ProviderFor(orders)
 final ordersProvider = OrdersProvider._();
@@ -85,4 +80,4 @@ final class OrdersProvider extends $FunctionalProvider<
   }
 }
 
-String _$ordersHash() => r'4953092b794811549450803dc43e8069c9d93b0b';
+String _$ordersHash() => r'6ff72c19b67310ad1c38b80744a1d7c7da34513a';

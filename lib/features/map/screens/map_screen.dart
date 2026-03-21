@@ -8,6 +8,7 @@ import '../models/driver_route.dart';
 import '../models/route_stop.dart';
 import '../providers/map_provider.dart';
 import '../widgets/stop_detail_sheet.dart';
+import '../../config/providers/config_provider.dart';
 
 class MapScreen extends ConsumerWidget {
   const MapScreen({super.key});
@@ -15,6 +16,10 @@ class MapScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final routesAsync = ref.watch(routeStateProvider);
+    final config = ref.watch(configProvider).value;
+    final storeLocation = config != null
+        ? LatLng(config.storeLat, config.storeLng)
+        : const LatLng(0, 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,7 +47,7 @@ class MapScreen extends ConsumerWidget {
         ),
         data: (routes) => routes.isEmpty
             ? const _EmptyView()
-            : _MapView(routes: routes),
+            : _MapView(routes: routes, storeLocation: storeLocation),
       ),
     );
   }
@@ -51,8 +56,9 @@ class MapScreen extends ConsumerWidget {
 // ── Map view ────────────────────────────────────────────────────────────────
 
 class _MapView extends StatefulWidget {
-  const _MapView({required this.routes});
+  const _MapView({required this.routes, required this.storeLocation});
   final List<DriverRoute> routes;
+  final LatLng storeLocation;
 
   @override
   State<_MapView> createState() => _MapViewState();
@@ -69,7 +75,7 @@ class _MapViewState extends State<_MapView> {
 
   void _fitBounds() {
     final allPoints = [
-      storeLocation,
+      widget.storeLocation,
       ...widget.routes
           .expand((r) => r.stops.map((s) => s.location)),
     ];
@@ -98,7 +104,7 @@ class _MapViewState extends State<_MapView> {
         FlutterMap(
           mapController: _mapCtrl,
           options: MapOptions(
-            initialCenter: storeLocation,
+            initialCenter: widget.storeLocation,
             initialZoom: 12,
           ),
           children: [
@@ -125,7 +131,7 @@ class _MapViewState extends State<_MapView> {
               markers: [
                 // Store marker
                 Marker(
-                  point: storeLocation,
+                  point: widget.storeLocation,
                   width: 44,
                   height: 44,
                   child: const _StoreMarker(),

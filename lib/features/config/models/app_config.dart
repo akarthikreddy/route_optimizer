@@ -6,9 +6,8 @@ part 'app_config.g.dart';
 @freezed
 abstract class AppConfig with _$AppConfig {
   const factory AppConfig({
-    @Default('') String wooBaseUrl,
-    @Default('') String consumerKey,
-    @Default('') String consumerSecret,
+    @Default(0.0) double storeLat,
+    @Default(0.0) double storeLng,
     @Default(3) int driverCount,
     @Default(50.0) double kmCapPerDriver,
   }) = _AppConfig;

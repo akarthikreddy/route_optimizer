@@ -14,9 +14,8 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$AppConfig {
-  String get wooBaseUrl;
-  String get consumerKey;
-  String get consumerSecret;
+  double get storeLat;
+  double get storeLng;
   int get driverCount;
   double get kmCapPerDriver;
 
@@ -35,12 +34,10 @@ mixin _$AppConfig {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is AppConfig &&
-            (identical(other.wooBaseUrl, wooBaseUrl) ||
-                other.wooBaseUrl == wooBaseUrl) &&
-            (identical(other.consumerKey, consumerKey) ||
-                other.consumerKey == consumerKey) &&
-            (identical(other.consumerSecret, consumerSecret) ||
-                other.consumerSecret == consumerSecret) &&
+            (identical(other.storeLat, storeLat) ||
+                other.storeLat == storeLat) &&
+            (identical(other.storeLng, storeLng) ||
+                other.storeLng == storeLng) &&
             (identical(other.driverCount, driverCount) ||
                 other.driverCount == driverCount) &&
             (identical(other.kmCapPerDriver, kmCapPerDriver) ||
@@ -49,12 +46,12 @@ mixin _$AppConfig {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, wooBaseUrl, consumerKey,
-      consumerSecret, driverCount, kmCapPerDriver);
+  int get hashCode =>
+      Object.hash(runtimeType, storeLat, storeLng, driverCount, kmCapPerDriver);
 
   @override
   String toString() {
-    return 'AppConfig(wooBaseUrl: $wooBaseUrl, consumerKey: $consumerKey, consumerSecret: $consumerSecret, driverCount: $driverCount, kmCapPerDriver: $kmCapPerDriver)';
+    return 'AppConfig(storeLat: $storeLat, storeLng: $storeLng, driverCount: $driverCount, kmCapPerDriver: $kmCapPerDriver)';
   }
 }
 
@@ -64,9 +61,8 @@ abstract mixin class $AppConfigCopyWith<$Res> {
       _$AppConfigCopyWithImpl;
   @useResult
   $Res call(
-      {String wooBaseUrl,
-      String consumerKey,
-      String consumerSecret,
+      {double storeLat,
+      double storeLng,
       int driverCount,
       double kmCapPerDriver});
 }
@@ -83,25 +79,20 @@ class _$AppConfigCopyWithImpl<$Res> implements $AppConfigCopyWith<$Res> {
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? wooBaseUrl = null,
-    Object? consumerKey = null,
-    Object? consumerSecret = null,
+    Object? storeLat = null,
+    Object? storeLng = null,
     Object? driverCount = null,
     Object? kmCapPerDriver = null,
   }) {
     return _then(_self.copyWith(
-      wooBaseUrl: null == wooBaseUrl
-          ? _self.wooBaseUrl
-          : wooBaseUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      consumerKey: null == consumerKey
-          ? _self.consumerKey
-          : consumerKey // ignore: cast_nullable_to_non_nullable
-              as String,
-      consumerSecret: null == consumerSecret
-          ? _self.consumerSecret
-          : consumerSecret // ignore: cast_nullable_to_non_nullable
-              as String,
+      storeLat: null == storeLat
+          ? _self.storeLat
+          : storeLat // ignore: cast_nullable_to_non_nullable
+              as double,
+      storeLng: null == storeLng
+          ? _self.storeLng
+          : storeLng // ignore: cast_nullable_to_non_nullable
+              as double,
       driverCount: null == driverCount
           ? _self.driverCount
           : driverCount // ignore: cast_nullable_to_non_nullable
@@ -207,16 +198,16 @@ extension AppConfigPatterns on AppConfig {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(String wooBaseUrl, String consumerKey,
-            String consumerSecret, int driverCount, double kmCapPerDriver)?
+    TResult Function(double storeLat, double storeLng, int driverCount,
+            double kmCapPerDriver)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _AppConfig() when $default != null:
-        return $default(_that.wooBaseUrl, _that.consumerKey,
-            _that.consumerSecret, _that.driverCount, _that.kmCapPerDriver);
+        return $default(_that.storeLat, _that.storeLng, _that.driverCount,
+            _that.kmCapPerDriver);
       case _:
         return orElse();
     }
@@ -237,15 +228,15 @@ extension AppConfigPatterns on AppConfig {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(String wooBaseUrl, String consumerKey,
-            String consumerSecret, int driverCount, double kmCapPerDriver)
+    TResult Function(double storeLat, double storeLng, int driverCount,
+            double kmCapPerDriver)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AppConfig():
-        return $default(_that.wooBaseUrl, _that.consumerKey,
-            _that.consumerSecret, _that.driverCount, _that.kmCapPerDriver);
+        return $default(_that.storeLat, _that.storeLng, _that.driverCount,
+            _that.kmCapPerDriver);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -265,15 +256,15 @@ extension AppConfigPatterns on AppConfig {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(String wooBaseUrl, String consumerKey,
-            String consumerSecret, int driverCount, double kmCapPerDriver)?
+    TResult? Function(double storeLat, double storeLng, int driverCount,
+            double kmCapPerDriver)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AppConfig() when $default != null:
-        return $default(_that.wooBaseUrl, _that.consumerKey,
-            _that.consumerSecret, _that.driverCount, _that.kmCapPerDriver);
+        return $default(_that.storeLat, _that.storeLng, _that.driverCount,
+            _that.kmCapPerDriver);
       case _:
         return null;
     }
@@ -284,9 +275,8 @@ extension AppConfigPatterns on AppConfig {
 @JsonSerializable()
 class _AppConfig implements AppConfig {
   const _AppConfig(
-      {this.wooBaseUrl = '',
-      this.consumerKey = '',
-      this.consumerSecret = '',
+      {this.storeLat = 0.0,
+      this.storeLng = 0.0,
       this.driverCount = 3,
       this.kmCapPerDriver = 50.0});
   factory _AppConfig.fromJson(Map<String, dynamic> json) =>
@@ -294,13 +284,10 @@ class _AppConfig implements AppConfig {
 
   @override
   @JsonKey()
-  final String wooBaseUrl;
+  final double storeLat;
   @override
   @JsonKey()
-  final String consumerKey;
-  @override
-  @JsonKey()
-  final String consumerSecret;
+  final double storeLng;
   @override
   @JsonKey()
   final int driverCount;
@@ -328,12 +315,10 @@ class _AppConfig implements AppConfig {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _AppConfig &&
-            (identical(other.wooBaseUrl, wooBaseUrl) ||
-                other.wooBaseUrl == wooBaseUrl) &&
-            (identical(other.consumerKey, consumerKey) ||
-                other.consumerKey == consumerKey) &&
-            (identical(other.consumerSecret, consumerSecret) ||
-                other.consumerSecret == consumerSecret) &&
+            (identical(other.storeLat, storeLat) ||
+                other.storeLat == storeLat) &&
+            (identical(other.storeLng, storeLng) ||
+                other.storeLng == storeLng) &&
             (identical(other.driverCount, driverCount) ||
                 other.driverCount == driverCount) &&
             (identical(other.kmCapPerDriver, kmCapPerDriver) ||
@@ -342,12 +327,12 @@ class _AppConfig implements AppConfig {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, wooBaseUrl, consumerKey,
-      consumerSecret, driverCount, kmCapPerDriver);
+  int get hashCode =>
+      Object.hash(runtimeType, storeLat, storeLng, driverCount, kmCapPerDriver);
 
   @override
   String toString() {
-    return 'AppConfig(wooBaseUrl: $wooBaseUrl, consumerKey: $consumerKey, consumerSecret: $consumerSecret, driverCount: $driverCount, kmCapPerDriver: $kmCapPerDriver)';
+    return 'AppConfig(storeLat: $storeLat, storeLng: $storeLng, driverCount: $driverCount, kmCapPerDriver: $kmCapPerDriver)';
   }
 }
 
@@ -360,9 +345,8 @@ abstract mixin class _$AppConfigCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String wooBaseUrl,
-      String consumerKey,
-      String consumerSecret,
+      {double storeLat,
+      double storeLng,
       int driverCount,
       double kmCapPerDriver});
 }
@@ -379,25 +363,20 @@ class __$AppConfigCopyWithImpl<$Res> implements _$AppConfigCopyWith<$Res> {
   @override
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? wooBaseUrl = null,
-    Object? consumerKey = null,
-    Object? consumerSecret = null,
+    Object? storeLat = null,
+    Object? storeLng = null,
     Object? driverCount = null,
     Object? kmCapPerDriver = null,
   }) {
     return _then(_AppConfig(
-      wooBaseUrl: null == wooBaseUrl
-          ? _self.wooBaseUrl
-          : wooBaseUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      consumerKey: null == consumerKey
-          ? _self.consumerKey
-          : consumerKey // ignore: cast_nullable_to_non_nullable
-              as String,
-      consumerSecret: null == consumerSecret
-          ? _self.consumerSecret
-          : consumerSecret // ignore: cast_nullable_to_non_nullable
-              as String,
+      storeLat: null == storeLat
+          ? _self.storeLat
+          : storeLat // ignore: cast_nullable_to_non_nullable
+              as double,
+      storeLng: null == storeLng
+          ? _self.storeLng
+          : storeLng // ignore: cast_nullable_to_non_nullable
+              as double,
       driverCount: null == driverCount
           ? _self.driverCount
           : driverCount // ignore: cast_nullable_to_non_nullable

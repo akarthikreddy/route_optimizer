@@ -7,18 +7,16 @@ part of 'app_config.dart';
 // **************************************************************************
 
 _AppConfig _$AppConfigFromJson(Map<String, dynamic> json) => _AppConfig(
-      wooBaseUrl: json['wooBaseUrl'] as String? ?? '',
-      consumerKey: json['consumerKey'] as String? ?? '',
-      consumerSecret: json['consumerSecret'] as String? ?? '',
+      storeLat: (json['storeLat'] as num?)?.toDouble() ?? 0.0,
+      storeLng: (json['storeLng'] as num?)?.toDouble() ?? 0.0,
       driverCount: (json['driverCount'] as num?)?.toInt() ?? 3,
       kmCapPerDriver: (json['kmCapPerDriver'] as num?)?.toDouble() ?? 50.0,
     );
 
 Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
     <String, dynamic>{
-      'wooBaseUrl': instance.wooBaseUrl,
-      'consumerKey': instance.consumerKey,
-      'consumerSecret': instance.consumerSecret,
+      'storeLat': instance.storeLat,
+      'storeLng': instance.storeLng,
       'driverCount': instance.driverCount,
       'kmCapPerDriver': instance.kmCapPerDriver,
     };

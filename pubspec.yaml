@@ -36,6 +36,8 @@ dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/woo_config.json
 
 dev_dependencies:
   flutter_test:
