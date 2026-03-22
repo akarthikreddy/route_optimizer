@@ -31,19 +31,16 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
 
   final geocoded = <GeocodedOrder>[];
   for (final order in orderList) {
-    final billing = order.billing;
-    final fullAddress = billing.fullAddress;
-    if (fullAddress.isEmpty) continue;
+    final b = order.billing;
+    if (b.city.isEmpty && b.postcode.isEmpty) continue;
 
-    // Try full address first, fall back to city + postcode if it fails
-    LatLng? location = await geocoder.geocode(fullAddress);
-    if (location == null) {
-      final fallback = [billing.city, billing.postcode, billing.country]
-          .where((p) => p.isNotEmpty)
-          .join(', ');
-      if (fallback.isNotEmpty) {
-        location = await geocoder.geocode(fallback);
-      }
+    // Build progressively simpler queries — Indian door numbers (e.g.
+    // "2-2-1105/80") confuse geocoders so we try without them first.
+    final queries = _geocodeQueries(b);
+    LatLng? location;
+    for (final q in queries) {
+      location = await geocoder.geocode(q);
+      if (location != null) break;
     }
 
     if (location != null) {
@@ -54,11 +51,37 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
   if (geocoded.isEmpty && orderList.isNotEmpty) {
     throw Exception(
       'Could not geocode any of the ${orderList.length} order addresses. '
-      'Check that your store country is set correctly in WooCommerce.',
+      'Check that billing addresses have a valid city and postcode in WooCommerce.',
     );
   }
 
   return geocoded;
+}
+
+/// Returns queries in order of specificity (most → least).
+List<String> _geocodeQueries(WooBilling b) {
+  String join(List<String> parts) =>
+      parts.where((p) => p.isNotEmpty).join(', ');
+
+  return [
+    // 1. Colony/area + city + postcode  (skip door number)
+    if (b.address2.isNotEmpty)
+      join([b.address2, b.city, b.postcode, b.country]),
+    // 2. Locality part of address1 (strip leading door number like "2-2-1105/80")
+    join([_stripDoorNumber(b.address1), b.city, b.postcode, b.country]),
+    // 3. City + postcode only  (most reliable for Indian pincodes)
+    join([b.city, b.postcode, b.country]),
+    // 4. City + state only
+    join([b.city, b.state, b.country]),
+  ].where((q) => q.isNotEmpty).toList();
+}
+
+/// Removes leading door/plot numbers like "2-2-1105/80, " from an address line.
+String _stripDoorNumber(String address) {
+  // Match patterns like "1-2/34A, " or "Flat 12, " at the start
+  final stripped =
+      address.replaceFirst(RegExp(r'^[\d\-/\\]+[A-Za-z]?\s*,?\s*'), '').trim();
+  return stripped.isNotEmpty ? stripped : address;
 }
 
 /// Manages the optimized route state and handles marking stops as delivered.
