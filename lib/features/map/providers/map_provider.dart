@@ -65,13 +65,17 @@ List<String> _geocodeQueries(WooBilling b) {
   String join(List<String> parts) =>
       parts.where((p) => p.isNotEmpty).join(', ');
 
+  final locality = _stripDoorNumber(b.address1);
+
   return [
-    // 1. Colony/area + postcode + country  (best: specific area, reliable postcode)
+    // 1. Colony/area (address2) + postcode + country
     if (b.address2.isNotEmpty)
       join([b.address2, b.postcode, b.country]),
-    // 2. Stripped address1 locality + postcode + country
-    join([_stripDoorNumber(b.address1), b.postcode, b.country]),
-    // 3. Postcode + state + country  (postcode alone is very reliable in India)
+    // 2. Locality from address1 (door number stripped) + postcode — only if
+    //    stripping left something meaningful (more than 3 chars)
+    if (locality.isNotEmpty)
+      join([locality, b.postcode, b.country]),
+    // 3. Postcode + state + country  (Indian pincodes are very specific)
     join([b.postcode, b.state, b.country]),
     // 4. Postcode + country only
     join([b.postcode, b.country]),
@@ -80,12 +84,19 @@ List<String> _geocodeQueries(WooBilling b) {
   ].where((q) => q.isNotEmpty).toList();
 }
 
-/// Removes leading door/plot numbers like "2-2-1105/80, " from an address line.
+/// Strips leading door/plot numbers from an Indian address line.
+/// e.g. "7-1-32/VL"          → "" (entire token is a door number → skip)
+///      "2-2-1105/80, Tilak Nagar" → "Tilak Nagar"
+///      "#D 607 Naramada block"    → "Naramada block"
 String _stripDoorNumber(String address) {
-  // Match patterns like "1-2/34A, " or "Flat 12, " at the start
-  final stripped =
-      address.replaceFirst(RegExp(r'^[\d\-/\\]+[A-Za-z]?\s*,?\s*'), '').trim();
-  return stripped.isNotEmpty ? stripped : address;
+  // Remove leading door number token: digits/hyphens/slashes + optional letters
+  // e.g. "7-1-32/VL" or "2-2-1105/80" or "#D 607"
+  final stripped = address
+      .replaceFirst(RegExp(r'^#?[\d\-/\\]+[A-Za-z]*\s*,?\s*'), '')
+      .replaceFirst(RegExp(r'^#[A-Za-z]\s*\d+\s*,?\s*'), '') // "#D 607 ..."
+      .trim();
+  // Only return if the result is meaningful (more than 3 characters)
+  return stripped.length > 3 ? stripped : '';
 }
 
 /// Manages the optimized route state and handles marking stops as delivered.
