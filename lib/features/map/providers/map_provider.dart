@@ -58,21 +58,25 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
   return geocoded;
 }
 
-/// Returns queries in order of specificity (most → least).
+/// Returns queries in order of reliability for Indian addresses.
+/// Postcode is the most trustworthy signal — city names are often
+/// abbreviated or misspelled (e.g. "Hyder" instead of "Hyderabad").
 List<String> _geocodeQueries(WooBilling b) {
   String join(List<String> parts) =>
       parts.where((p) => p.isNotEmpty).join(', ');
 
   return [
-    // 1. Colony/area + city + postcode  (skip door number)
+    // 1. Colony/area + postcode + country  (best: specific area, reliable postcode)
     if (b.address2.isNotEmpty)
-      join([b.address2, b.city, b.postcode, b.country]),
-    // 2. Locality part of address1 (strip leading door number like "2-2-1105/80")
-    join([_stripDoorNumber(b.address1), b.city, b.postcode, b.country]),
-    // 3. City + postcode only  (most reliable for Indian pincodes)
-    join([b.city, b.postcode, b.country]),
-    // 4. City + state only
-    join([b.city, b.state, b.country]),
+      join([b.address2, b.postcode, b.country]),
+    // 2. Stripped address1 locality + postcode + country
+    join([_stripDoorNumber(b.address1), b.postcode, b.country]),
+    // 3. Postcode + state + country  (postcode alone is very reliable in India)
+    join([b.postcode, b.state, b.country]),
+    // 4. Postcode + country only
+    join([b.postcode, b.country]),
+    // 5. Last resort: city + state (only if no postcode)
+    if (b.postcode.isEmpty) join([b.city, b.state, b.country]),
   ].where((q) => q.isNotEmpty).toList();
 }
 
