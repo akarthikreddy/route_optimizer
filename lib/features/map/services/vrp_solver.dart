@@ -7,10 +7,11 @@ import '../models/route_stop.dart';
 import 'route_optimizer_interface.dart';
 import 'osrm_service.dart';
 
-/// Pure-Dart VRP solver using:
-/// 1. Greedy nearest-neighbour clustering respecting km cap per driver.
-/// 2. Nearest-neighbour TSP to sort stops within each driver's cluster.
-/// 3. OSRM for actual road geometry.
+/// VRP Solver using:
+/// 1. K-means geographic clustering — groups spatially close orders to the
+///    same driver, preventing two drivers from covering the same neighbourhood.
+/// 2. Nearest-neighbour TSP to sort stops within each cluster.
+/// 3. OSRM for real road geometry.
 class VrpSolver implements RouteOptimizerInterface {
   VrpSolver({required this.osrmService});
 
@@ -25,20 +26,21 @@ class VrpSolver implements RouteOptimizerInterface {
   }) async {
     if (orders.isEmpty) return [];
 
-    // Step 1: cluster orders to drivers
-    final clusters = _cluster(
+    final k = min(driverCount, orders.length);
+
+    // Step 1: k-means clustering
+    final clusters = _kMeansCluster(
       orders: orders,
-      driverCount: driverCount,
-      kmCapPerDriver: kmCapPerDriver,
+      k: k,
       depot: depot,
+      kmCapPerDriver: kmCapPerDriver,
     );
 
-    // Step 2: sort each cluster with nearest-neighbour TSP
-    final sortedClusters = clusters
-        .map((cluster) => _nearestNeighbourTsp(cluster, depot))
-        .toList();
+    // Step 2: nearest-neighbour TSP within each cluster
+    final sortedClusters =
+        clusters.map((c) => _nearestNeighbourTsp(c, depot)).toList();
 
-    // Step 3: fetch OSRM route geometry per driver
+    // Step 3: fetch OSRM geometry per driver
     final routes = <DriverRoute>[];
     for (int i = 0; i < sortedClusters.length; i++) {
       final cluster = sortedClusters[i];
@@ -52,7 +54,6 @@ class VrpSolver implements RouteOptimizerInterface {
         polyline = result.geometry;
         distanceKm = result.distanceKm;
       } catch (_) {
-        // Fallback: straight lines
         polyline = waypoints;
         distanceKm = _totalHaversineKm(waypoints);
       }
@@ -77,67 +78,152 @@ class VrpSolver implements RouteOptimizerInterface {
     return routes;
   }
 
-  // ── Greedy nearest-neighbour clustering ──────────────────────────────────
+  // ── K-means geographic clustering ─────────────────────────────────────────
 
-  List<List<GeocodedOrder>> _cluster({
+  List<List<GeocodedOrder>> _kMeansCluster({
     required List<GeocodedOrder> orders,
-    required int driverCount,
-    required double kmCapPerDriver,
+    required int k,
     required LatLng depot,
+    required double kmCapPerDriver,
   }) {
-    final unassigned = List<GeocodedOrder>.from(orders);
-    final clusters = List.generate(driverCount, (_) => <GeocodedOrder>[]);
-    final usedKm = List.filled(driverCount, 0.0);
+    // Initialise centroids using max-spread: each new centroid is the order
+    // farthest from all existing centroids, ensuring drivers cover different
+    // geographic areas from the start.
+    final centroids = _initCentroids(orders, k);
+    final assignments = List.filled(orders.length, 0);
 
-    LatLng currentPos(int d) =>
-        clusters[d].isEmpty ? depot : clusters[d].last.location;
+    // Run up to 100 iterations or until assignments stabilise
+    for (int iter = 0; iter < 100; iter++) {
+      bool changed = false;
 
-    while (unassigned.isNotEmpty) {
-      bool anyAssigned = false;
-
-      for (int d = 0; d < driverCount; d++) {
-        if (usedKm[d] >= kmCapPerDriver) continue;
-
-        // Find nearest unassigned order that fits within km cap
-        int bestIdx = -1;
-        double bestDist = double.infinity;
-
-        for (int i = 0; i < unassigned.length; i++) {
-          final dist = _haversineKm(currentPos(d), unassigned[i].location);
-          final returnDist = _haversineKm(unassigned[i].location, depot);
-          if (usedKm[d] + dist + returnDist <= kmCapPerDriver &&
-              dist < bestDist) {
-            bestDist = dist;
-            bestIdx = i;
+      for (int i = 0; i < orders.length; i++) {
+        int nearest = 0;
+        double nearestDist = double.infinity;
+        for (int j = 0; j < k; j++) {
+          final d = _haversineKm(orders[i].location, centroids[j]);
+          if (d < nearestDist) {
+            nearestDist = d;
+            nearest = j;
           }
         }
-
-        if (bestIdx >= 0) {
-          usedKm[d] += bestDist;
-          clusters[d].add(unassigned.removeAt(bestIdx));
-          anyAssigned = true;
+        if (assignments[i] != nearest) {
+          assignments[i] = nearest;
+          changed = true;
         }
       }
 
-      // If nothing could be assigned (all caps exceeded), force-assign to
-      // driver with most remaining capacity to avoid infinite loop.
-      if (!anyAssigned && unassigned.isNotEmpty) {
-        final d = _driverWithMostCapacity(usedKm, kmCapPerDriver);
-        final order = unassigned.removeAt(0);
-        usedKm[d] += _haversineKm(currentPos(d), order.location);
-        clusters[d].add(order);
+      if (!changed) break;
+
+      // Recompute centroids as geographic mean of assigned orders
+      for (int j = 0; j < k; j++) {
+        final members = <GeocodedOrder>[];
+        for (int i = 0; i < orders.length; i++) {
+          if (assignments[i] == j) members.add(orders[i]);
+        }
+        if (members.isEmpty) continue;
+        final avgLat =
+            members.map((o) => o.location.latitude).reduce((a, b) => a + b) /
+                members.length;
+        final avgLng =
+            members.map((o) => o.location.longitude).reduce((a, b) => a + b) /
+                members.length;
+        centroids[j] = LatLng(avgLat, avgLng);
       }
     }
+
+    // Build raw clusters
+    final clusters = List.generate(k, (_) => <GeocodedOrder>[]);
+    for (int i = 0; i < orders.length; i++) {
+      clusters[assignments[i]].add(orders[i]);
+    }
+
+    // Enforce km cap: move overflowing orders to the nearest other cluster
+    _enforceKmCap(
+      clusters: clusters,
+      depot: depot,
+      kmCapPerDriver: kmCapPerDriver,
+    );
 
     return clusters;
   }
 
-  int _driverWithMostCapacity(List<double> usedKm, double cap) {
-    int best = 0;
-    for (int i = 1; i < usedKm.length; i++) {
-      if (usedKm[i] < usedKm[best]) best = i;
+  /// Initialises k centroids using max-spread selection (similar to k-means++).
+  /// Each new centroid is the order farthest from all already-chosen centroids.
+  List<LatLng> _initCentroids(List<GeocodedOrder> orders, int k) {
+    final centroids = <LatLng>[];
+
+    // Start with the order farthest from the first order (creates spread)
+    centroids.add(orders.first.location);
+
+    while (centroids.length < k) {
+      GeocodedOrder? farthest;
+      double maxMinDist = -1;
+
+      for (final o in orders) {
+        // Min distance from this order to any existing centroid
+        final minDist = centroids
+            .map((c) => _haversineKm(o.location, c))
+            .reduce(min);
+        if (minDist > maxMinDist) {
+          maxMinDist = minDist;
+          farthest = o;
+        }
+      }
+
+      if (farthest != null) centroids.add(farthest.location);
     }
-    return best;
+
+    return centroids;
+  }
+
+  /// Moves orders from over-capacity clusters to the nearest cluster that
+  /// still has room, so no driver exceeds their km cap.
+  void _enforceKmCap({
+    required List<List<GeocodedOrder>> clusters,
+    required LatLng depot,
+    required double kmCapPerDriver,
+  }) {
+    bool overflow = true;
+    int safetyLimit = clusters.length * 10;
+
+    while (overflow && safetyLimit-- > 0) {
+      overflow = false;
+
+      for (int i = 0; i < clusters.length; i++) {
+        final routeKm = _clusterKm(clusters[i], depot);
+        if (routeKm <= kmCapPerDriver) continue;
+
+        overflow = true;
+
+        // Find the order in this cluster whose removal saves the most km
+        int worstIdx = _mostExpensiveOrderIndex(clusters[i], depot);
+        final order = clusters[i].removeAt(worstIdx);
+
+        // Move it to the cluster (≠ i) whose centroid is nearest to this order
+        int bestCluster = -1;
+        double bestDist = double.infinity;
+        for (int j = 0; j < clusters.length; j++) {
+          if (j == i) continue;
+          final targetKm = _clusterKm(clusters[j], depot) +
+              _haversineKm(order.location, depot);
+          if (targetKm <= kmCapPerDriver * 1.1) {
+            // 10% tolerance to avoid infinite loops
+            final d = _centroidDist(clusters[j], order.location);
+            if (d < bestDist) {
+              bestDist = d;
+              bestCluster = j;
+            }
+          }
+        }
+
+        // If no cluster fits, just add to the least-loaded one
+        if (bestCluster == -1) {
+          bestCluster = _leastLoadedCluster(clusters, depot, i);
+        }
+
+        clusters[bestCluster].add(order);
+      }
+    }
   }
 
   // ── Nearest-neighbour TSP ─────────────────────────────────────────────────
@@ -169,7 +255,7 @@ class VrpSolver implements RouteOptimizerInterface {
     return route;
   }
 
-  // ── Distance helpers ──────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   double _haversineKm(LatLng a, LatLng b) {
     const r = 6371.0;
@@ -188,5 +274,55 @@ class VrpSolver implements RouteOptimizerInterface {
       total += _haversineKm(points[i], points[i + 1]);
     }
     return total;
+  }
+
+  /// Estimates total route km for a cluster (depot → stops → depot).
+  double _clusterKm(List<GeocodedOrder> cluster, LatLng depot) {
+    if (cluster.isEmpty) return 0;
+    final points = [depot, ...cluster.map((o) => o.location), depot];
+    return _totalHaversineKm(points);
+  }
+
+  /// Returns the index of the order whose removal reduces route km the most.
+  int _mostExpensiveOrderIndex(List<GeocodedOrder> cluster, LatLng depot) {
+    final baseKm = _clusterKm(cluster, depot);
+    int worstIdx = 0;
+    double maxSaving = -1;
+
+    for (int i = 0; i < cluster.length; i++) {
+      final without = [...cluster]..removeAt(i);
+      final saving = baseKm - _clusterKm(without, depot);
+      if (saving > maxSaving) {
+        maxSaving = saving;
+        worstIdx = i;
+      }
+    }
+    return worstIdx;
+  }
+
+  double _centroidDist(List<GeocodedOrder> cluster, LatLng point) {
+    if (cluster.isEmpty) return double.infinity;
+    final avgLat =
+        cluster.map((o) => o.location.latitude).reduce((a, b) => a + b) /
+            cluster.length;
+    final avgLng =
+        cluster.map((o) => o.location.longitude).reduce((a, b) => a + b) /
+            cluster.length;
+    return _haversineKm(LatLng(avgLat, avgLng), point);
+  }
+
+  int _leastLoadedCluster(
+      List<List<GeocodedOrder>> clusters, LatLng depot, int exclude) {
+    int best = exclude == 0 ? 1 : 0;
+    double minKm = double.infinity;
+    for (int j = 0; j < clusters.length; j++) {
+      if (j == exclude) continue;
+      final km = _clusterKm(clusters[j], depot);
+      if (km < minKm) {
+        minKm = km;
+        best = j;
+      }
+    }
+    return best;
   }
 }
