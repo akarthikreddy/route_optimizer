@@ -174,7 +174,7 @@ final class GeocodedOrdersProvider extends $FunctionalProvider<
   }
 }
 
-String _$geocodedOrdersHash() => r'ebabc68439c62f858ce98582502fc0d94eef6824';
+String _$geocodedOrdersHash() => r'6f38c84b7094d15d8d756819237edb12661b146f';
 
 /// Manages the optimized route state and handles marking stops as delivered.
 

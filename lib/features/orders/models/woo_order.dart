@@ -47,6 +47,7 @@ extension WooBillingX on WooBilling {
       city,
       if (state.isNotEmpty) state,
       postcode,
+      if (country.isNotEmpty) country,
     ].where((p) => p.isNotEmpty).toList();
     return parts.join(', ');
   }

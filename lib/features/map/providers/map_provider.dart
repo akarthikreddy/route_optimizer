@@ -31,14 +31,33 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
 
   final geocoded = <GeocodedOrder>[];
   for (final order in orderList) {
-    final address = order.billing.fullAddress;
-    if (address.isEmpty) continue;
+    final billing = order.billing;
+    final fullAddress = billing.fullAddress;
+    if (fullAddress.isEmpty) continue;
 
-    final location = await geocoder.geocode(address);
+    // Try full address first, fall back to city + postcode if it fails
+    LatLng? location = await geocoder.geocode(fullAddress);
+    if (location == null) {
+      final fallback = [billing.city, billing.postcode, billing.country]
+          .where((p) => p.isNotEmpty)
+          .join(', ');
+      if (fallback.isNotEmpty) {
+        location = await geocoder.geocode(fallback);
+      }
+    }
+
     if (location != null) {
       geocoded.add(GeocodedOrder(order: order, location: location));
     }
   }
+
+  if (geocoded.isEmpty && orderList.isNotEmpty) {
+    throw Exception(
+      'Could not geocode any of the ${orderList.length} order addresses. '
+      'Check that your store country is set correctly in WooCommerce.',
+    );
+  }
+
   return geocoded;
 }
 
