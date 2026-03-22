@@ -7,20 +7,13 @@ import '../models/route_stop.dart';
 import 'route_optimizer_interface.dart';
 import 'osrm_service.dart';
 
-/// VRP Solver using the Clarke-Wright Savings Algorithm:
+/// Fallback VRP Solver (used when Google Route Optimization is not configured).
 ///
-/// 1. Every order starts as its own route: depot → order → depot.
-/// 2. Compute savings for every pair (i, j):
-///      s(i,j) = d(depot,i) + d(depot,j) − d(i,j)
-///    High savings = i and j are close → combining them avoids backtracking.
-/// 3. Greedily merge routes in descending savings order, subject to km cap.
-/// 4. If merged routes > driverCount, consolidate smallest routes.
-/// 5. Nearest-neighbour TSP to sort stops within each route.
-/// 6. OSRM for real road geometry.
-///
-/// This naturally packs nearby deliveries onto one driver without
-/// enforcing equal order counts — a driver might get 10 stops in one
-/// neighbourhood while another gets 2 on the other side of town.
+/// Algorithm:
+/// 1. Clarke-Wright Savings — merges nearby orders onto the same driver.
+/// 2. Force-split largest routes if merged count < driverCount.
+/// 3. Nearest-neighbour TSP within each route.
+/// 4. OSRM for road geometry.
 class VrpSolver implements RouteOptimizerInterface {
   VrpSolver({required this.osrmService});
 
@@ -35,25 +28,25 @@ class VrpSolver implements RouteOptimizerInterface {
   }) async {
     if (orders.isEmpty) return [];
 
-    // Step 1 & 2: Clarke-Wright savings clustering
+    final k = min(driverCount, orders.length);
+
+    // Step 1: Clarke-Wright savings clustering
     final clusters = _savingsCluster(
       orders: orders,
-      driverCount: driverCount,
+      driverCount: k,
       kmCapPerDriver: kmCapPerDriver,
       depot: depot,
     );
 
-    // Step 3: nearest-neighbour TSP within each cluster
-    final sortedClusters =
-        clusters.map((c) => _nearestNeighbourTsp(c, depot)).toList();
-
-    // Step 4: OSRM route geometry per driver
+    // Step 2: TSP + OSRM per cluster
     final routes = <DriverRoute>[];
-    for (int i = 0; i < sortedClusters.length; i++) {
-      final cluster = sortedClusters[i];
+    for (int i = 0; i < clusters.length; i++) {
+      final cluster = clusters[i];
       if (cluster.isEmpty) continue;
 
-      final waypoints = [depot, ...cluster.map((o) => o.location)];
+      final sorted = _nearestNeighbourTsp(cluster, depot);
+      final waypoints = [depot, ...sorted.map((o) => o.location)];
+
       List<LatLng> polyline;
       double distanceKm;
       try {
@@ -65,7 +58,7 @@ class VrpSolver implements RouteOptimizerInterface {
         distanceKm = _totalHaversineKm(waypoints);
       }
 
-      final stops = cluster.asMap().entries.map((e) => RouteStop(
+      final stops = sorted.asMap().entries.map((e) => RouteStop(
             stopNumber: e.key + 1,
             order: e.value.order,
             location: e.value.location,
@@ -93,16 +86,10 @@ class VrpSolver implements RouteOptimizerInterface {
   }) {
     final n = orders.length;
 
-    // Each order starts as its own route [i]
-    // routeOf[i] = which route index order i currently belongs to
     final routeOf = List<int>.generate(n, (i) => i);
-    // routes[r] = ordered list of order indices in route r ([] = merged away)
     final routes = List<List<int>>.generate(n, (i) => [i]);
-    // Estimated km for each route (depot → stops → depot, straight-line)
-    final routeKm = List<double>.generate(
-        n, (i) => _haversineKm(depot, orders[i].location) * 2);
 
-    // Compute all pairwise savings and sort descending
+    // Compute and sort savings descending
     final savings = <_Saving>[];
     for (int i = 0; i < n; i++) {
       for (int j = i + 1; j < n; j++) {
@@ -114,37 +101,30 @@ class VrpSolver implements RouteOptimizerInterface {
     }
     savings.sort((a, b) => b.value.compareTo(a.value));
 
-    // Greedily merge
     for (final sv in savings) {
       final ri = routeOf[sv.i];
       final rj = routeOf[sv.j];
-
-      if (ri == rj) continue; // already in same route
+      if (ri == rj) continue;
       if (routes[ri].isEmpty || routes[rj].isEmpty) continue;
 
-      // Valid merge requires sv.i to be an endpoint of ri and
-      // sv.j to be an endpoint of rj (so no detour through depot).
-      final List<int>? merged = _tryMerge(routes[ri], routes[rj], sv.i, sv.j);
+      final merged = _tryMerge(routes[ri], routes[rj], sv.i, sv.j);
       if (merged == null) continue;
 
-      // Check km cap
-      final km = _routeKmFromIndices(merged, orders, depot);
+      final km = _routeKm(merged, orders, depot);
       if (km > kmCapPerDriver) continue;
 
-      // Commit merge into ri, clear rj
       routes[ri] = merged;
       routes[rj] = [];
-      routeKm[ri] = km;
-      for (final idx in merged) {
-        routeOf[idx] = ri;
-      }
+      for (final idx in merged) routeOf[idx] = ri;
     }
 
-    // Collect non-empty routes
     final active = routes.where((r) => r.isNotEmpty).toList();
 
-    // If more routes than drivers, consolidate smallest into nearest
+    // Too many routes → consolidate
     _consolidate(active, orders, depot, driverCount, kmCapPerDriver);
+
+    // Too few routes → split largest until we reach driverCount
+    _splitToReach(active, orders, depot, driverCount);
 
     return active
         .where((r) => r.isNotEmpty)
@@ -152,23 +132,14 @@ class VrpSolver implements RouteOptimizerInterface {
         .toList();
   }
 
-  /// Attempts to join routeA and routeB at their endpoints i (in A) and j (in B).
-  /// Returns the merged list, or null if the endpoints don't allow a valid merge.
   List<int>? _tryMerge(List<int> a, List<int> b, int i, int j) {
-    final aEnd = a.last == i;
-    final aStart = a.first == i;
-    final bStart = b.first == j;
-    final bEnd = b.last == j;
-
-    if (aEnd && bStart) return [...a, ...b];
-    if (bEnd && aStart) return [...b, ...a];
-    if (aEnd && bEnd) return [...a, ...b.reversed];
-    if (aStart && bStart) return [...a.reversed, ...b];
+    if (a.last == i && b.first == j) return [...a, ...b];
+    if (b.last == j && a.first == i) return [...b, ...a];
+    if (a.last == i && b.last == j) return [...a, ...b.reversed];
+    if (a.first == i && b.first == j) return [...a.reversed, ...b];
     return null;
   }
 
-  /// When we have more routes than drivers, merge the two routes whose
-  /// combined km is smallest (least detour), until we hit driverCount.
   void _consolidate(
     List<List<int>> active,
     List<GeocodedOrder> orders,
@@ -177,30 +148,80 @@ class VrpSolver implements RouteOptimizerInterface {
     double kmCapPerDriver,
   ) {
     while (active.length > driverCount) {
-      // Sort by route km ascending so we merge smallest first
       active.sort((a, b) =>
-          _routeKmFromIndices(a, orders, depot)
-              .compareTo(_routeKmFromIndices(b, orders, depot)));
+          _routeKm(a, orders, depot).compareTo(_routeKm(b, orders, depot)));
 
       bool merged = false;
       for (int j = 1; j < active.length; j++) {
         final combined = [...active[0], ...active[j]];
-        final km = _routeKmFromIndices(combined, orders, depot);
-        // Allow up to 20% over cap during consolidation to avoid deadlock
-        if (km <= kmCapPerDriver * 1.2) {
+        if (_routeKm(combined, orders, depot) <= kmCapPerDriver * 1.2) {
           active[j] = combined;
           active.removeAt(0);
           merged = true;
           break;
         }
       }
-
-      // If nothing fits, just merge the two smallest unconditionally
       if (!merged) {
         active[1] = [...active[0], ...active[1]];
         active.removeAt(0);
       }
     }
+  }
+
+  /// Splits the largest route at its geographic midpoint until we have
+  /// exactly [driverCount] routes. This ensures all drivers are used.
+  void _splitToReach(
+    List<List<int>> active,
+    List<GeocodedOrder> orders,
+    LatLng depot,
+    int driverCount,
+  ) {
+    while (active.length < driverCount) {
+      // Find the route with the most orders
+      int largestIdx = 0;
+      for (int i = 1; i < active.length; i++) {
+        if (active[i].length > active[largestIdx].length) largestIdx = i;
+      }
+
+      final route = active[largestIdx];
+      if (route.length < 2) break; // can't split a single-stop route
+
+      // Split at the geographic midpoint of the TSP-sorted route
+      // Use the pair of adjacent stops with the largest inter-stop distance
+      // as the split point — this is the natural "seam" between two areas.
+      int splitAt = _bestSplitPoint(route, orders, depot);
+
+      final partA = route.sublist(0, splitAt);
+      final partB = route.sublist(splitAt);
+
+      if (partA.isEmpty || partB.isEmpty) break;
+
+      active[largestIdx] = partA;
+      active.add(partB);
+    }
+  }
+
+  /// Returns the index to split at: the point after the longest gap
+  /// between consecutive stops (including depot→first and last→depot).
+  int _bestSplitPoint(List<int> route, List<GeocodedOrder> orders, LatLng depot) {
+    double maxGap = -1;
+    int splitAt = route.length ~/ 2; // fallback: split in half
+
+    final points = [
+      depot,
+      ...route.map((i) => orders[i].location),
+      depot,
+    ];
+
+    for (int i = 1; i < points.length - 1; i++) {
+      final gap = _haversineKm(points[i], points[i + 1]);
+      if (gap > maxGap) {
+        maxGap = gap;
+        splitAt = i; // split after position i (1-indexed in route)
+      }
+    }
+
+    return splitAt.clamp(1, route.length - 1);
   }
 
   // ── Nearest-neighbour TSP ─────────────────────────────────────────────────
@@ -251,14 +272,9 @@ class VrpSolver implements RouteOptimizerInterface {
     return total;
   }
 
-  double _routeKmFromIndices(
-      List<int> indices, List<GeocodedOrder> orders, LatLng depot) {
+  double _routeKm(List<int> indices, List<GeocodedOrder> orders, LatLng depot) {
     if (indices.isEmpty) return 0;
-    final points = [
-      depot,
-      ...indices.map((i) => orders[i].location),
-      depot,
-    ];
+    final points = [depot, ...indices.map((i) => orders[i].location), depot];
     return _totalHaversineKm(points);
   }
 }

@@ -133,6 +133,49 @@ final class VrpSolverProvider
 
 String _$vrpSolverHash() => r'6335ae86411f2722d954b6bb1158784c879e8b8d';
 
+/// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
+
+@ProviderFor(routeOptimizer)
+final routeOptimizerProvider = RouteOptimizerProvider._();
+
+/// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
+
+final class RouteOptimizerProvider extends $FunctionalProvider<
+        AsyncValue<RouteOptimizerInterface>,
+        RouteOptimizerInterface,
+        FutureOr<RouteOptimizerInterface>>
+    with
+        $FutureModifier<RouteOptimizerInterface>,
+        $FutureProvider<RouteOptimizerInterface> {
+  /// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
+  RouteOptimizerProvider._()
+      : super(
+          from: null,
+          argument: null,
+          retry: null,
+          name: r'routeOptimizerProvider',
+          isAutoDispose: true,
+          dependencies: null,
+          $allTransitiveDependencies: null,
+        );
+
+  @override
+  String debugGetCreateSourceHash() => _$routeOptimizerHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<RouteOptimizerInterface> $createElement(
+          $ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<RouteOptimizerInterface> create(Ref ref) {
+    return routeOptimizer(ref);
+  }
+}
+
+String _$routeOptimizerHash() => r'c3c79ecd6dc4aa7d8f1e1acd10084c3230c06e8b';
+
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 
 @ProviderFor(geocodedOrders)
@@ -174,7 +217,7 @@ final class GeocodedOrdersProvider extends $FunctionalProvider<
   }
 }
 
-String _$geocodedOrdersHash() => r'6f38c84b7094d15d8d756819237edb12661b146f';
+String _$geocodedOrdersHash() => r'b5ac5edd82ceee0d62ef9da6123ec817b0c76c86';
 
 /// Manages the optimized route state and handles marking stops as delivered.
 
@@ -204,7 +247,7 @@ final class RouteStateProvider
   RouteState create() => RouteState();
 }
 
-String _$routeStateHash() => r'497b4a996b87f99640b7c386efba382a2fad0246';
+String _$routeStateHash() => r'bea400adc464c0785d252a7fd386d69a93f6b744';
 
 /// Manages the optimized route state and handles marking stops as delivered.
 

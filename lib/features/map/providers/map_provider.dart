@@ -5,7 +5,9 @@ import '../models/driver_route.dart';
 import '../models/geocoded_order.dart';
 import '../models/route_stop.dart';
 import '../services/geocoding_service.dart';
+import '../services/google_route_optimizer.dart';
 import '../services/osrm_service.dart';
+import '../services/route_optimizer_interface.dart';
 import '../services/vrp_solver.dart';
 import '../../config/providers/config_provider.dart';
 import '../../orders/models/woo_order.dart';
@@ -22,6 +24,19 @@ OsrmService osrmService(Ref ref) => OsrmService();
 @riverpod
 VrpSolver vrpSolver(Ref ref) =>
     VrpSolver(osrmService: ref.watch(osrmServiceProvider));
+
+/// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
+@riverpod
+Future<RouteOptimizerInterface> routeOptimizer(Ref ref) async {
+  final wooConfig = await ref.watch(wooConfigProvider.future);
+  if (wooConfig.useGoogleOptimizer) {
+    return GoogleRouteOptimizer(
+      apiKey: wooConfig.googleApiKey,
+      projectId: wooConfig.googleProjectId,
+    );
+  }
+  return ref.watch(vrpSolverProvider);
+}
 
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 @riverpod
@@ -106,7 +121,7 @@ class RouteState extends _$RouteState {
   Future<List<DriverRoute>> build() async {
     final geocoded = await ref.watch(geocodedOrdersProvider.future);
     final config = await ref.watch(configProvider.future);
-    final solver = ref.watch(vrpSolverProvider);
+    final solver = await ref.watch(routeOptimizerProvider.future);
 
     if (geocoded.isEmpty) return [];
 
