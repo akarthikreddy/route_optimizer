@@ -73,28 +73,19 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
   return geocoded;
 }
 
-/// Returns queries in order of reliability for Indian addresses.
-/// State is included in ALL locality queries to prevent Nominatim matching
-/// a local area name to a city in another state (e.g. "Chanakyapuri" in
-/// address → Delhi match instead of Hyderabad).
+/// Geocode using pincode only — Indian pincodes are unique 6-digit codes
+/// that map to a specific area. Locality names cause wrong-city matches
+/// (e.g. "Chanakyapuri" → Delhi instead of Hyderabad) so we ignore them.
 List<String> _geocodeQueries(WooBilling b) {
   String join(List<String> parts) =>
       parts.where((p) => p.isNotEmpty).join(', ');
 
-  final locality = _stripDoorNumber(b.address1);
-
   return [
-    // 1. Postcode + state first — most reliable anchor for India
-    join([b.postcode, b.state, b.country]),
-    // 2. Colony/area (address2) + postcode + state + country
-    if (b.address2.isNotEmpty)
-      join([b.address2, b.postcode, b.state, b.country]),
-    // 3. Stripped locality + postcode + state (state prevents cross-city match)
-    if (locality.isNotEmpty)
-      join([locality, b.postcode, b.state, b.country]),
-    // 4. Postcode + country only
-    join([b.postcode, b.country]),
-    // 5. Last resort: city + state (only if no postcode)
+    // 1. Pincode only — always correct, always unique in India
+    if (b.postcode.isNotEmpty) b.postcode,
+    // 2. Pincode + country (helps Nominatim skip non-Indian results)
+    if (b.postcode.isNotEmpty) join([b.postcode, b.country]),
+    // 3. City + state fallback (only when no pincode)
     if (b.postcode.isEmpty) join([b.city, b.state, b.country]),
   ].where((q) => q.isNotEmpty).toList();
 }
