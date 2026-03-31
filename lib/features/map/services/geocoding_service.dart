@@ -10,8 +10,22 @@ class GeocodingService {
 
   static const _baseUrl = 'https://nominatim.openstreetmap.org/search';
 
-  /// Geocodes a free-form address string.
-  /// Returns null if geocoding fails.
+  /// Geocodes using Nominatim structured parameters.
+  /// Uses postalcode + countrycodes for reliable Indian pincode lookup.
+  Future<LatLng?> geocodeByPostalCode(String postalCode, String countryCode) async {
+    await _rateLimiter.throttle();
+
+    final uri = Uri.parse(_baseUrl).replace(queryParameters: {
+      'postalcode': postalCode,
+      'countrycodes': countryCode.toLowerCase(),
+      'format': 'json',
+      'limit': '1',
+    });
+
+    return _fetch(uri);
+  }
+
+  /// Geocodes a free-form address string. Fallback when no postal code.
   Future<LatLng?> geocode(String address) async {
     await _rateLimiter.throttle();
 
@@ -22,6 +36,10 @@ class GeocodingService {
       'addressdetails': '0',
     });
 
+    return _fetch(uri);
+  }
+
+  Future<LatLng?> _fetch(Uri uri) async {
     try {
       final response = await http.get(uri, headers: {
         'User-Agent': 'RouteOptimizer/1.0 (internal delivery app)',

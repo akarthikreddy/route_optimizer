@@ -15,20 +15,25 @@ final wooConfigProvider = WooConfigProvider._();
 
 /// Loads WooCommerce credentials from the bundled assets/woo_config.json.
 
-final class WooConfigProvider extends $FunctionalProvider<AsyncValue<WooConfig>,
-        WooConfig, FutureOr<WooConfig>>
+final class WooConfigProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<WooConfig>,
+          WooConfig,
+          FutureOr<WooConfig>
+        >
     with $FutureModifier<WooConfig>, $FutureProvider<WooConfig> {
   /// Loads WooCommerce credentials from the bundled assets/woo_config.json.
   WooConfigProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'wooConfigProvider',
-          isAutoDispose: false,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'wooConfigProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$wooConfigHash();
@@ -56,15 +61,15 @@ final class ConfigNotifierProvider
     extends $AsyncNotifierProvider<ConfigNotifier, AppConfig> {
   /// Stores user-entered settings (store location, driver config) on device.
   ConfigNotifierProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'configProvider',
-          isAutoDispose: false,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'configProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$configNotifierHash();
@@ -84,11 +89,14 @@ abstract class _$ConfigNotifier extends $AsyncNotifier<AppConfig> {
   @override
   void runBuild() {
     final ref = this.ref as $Ref<AsyncValue<AppConfig>, AppConfig>;
-    final element = ref.element as $ClassProviderElement<
-        AnyNotifier<AsyncValue<AppConfig>, AppConfig>,
-        AsyncValue<AppConfig>,
-        Object?,
-        Object?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<AppConfig>, AppConfig>,
+              AsyncValue<AppConfig>,
+              Object?,
+              Object?
+            >;
     element.handleCreate(ref, build);
   }
 }

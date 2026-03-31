@@ -12,20 +12,24 @@ part of 'map_provider.dart';
 @ProviderFor(geocodingService)
 final geocodingServiceProvider = GeocodingServiceProvider._();
 
-final class GeocodingServiceProvider extends $FunctionalProvider<
-    GeocodingService,
-    GeocodingService,
-    GeocodingService> with $Provider<GeocodingService> {
+final class GeocodingServiceProvider
+    extends
+        $FunctionalProvider<
+          GeocodingService,
+          GeocodingService,
+          GeocodingService
+        >
+    with $Provider<GeocodingService> {
   GeocodingServiceProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'geocodingServiceProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'geocodingServiceProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$geocodingServiceHash();
@@ -58,15 +62,15 @@ final class OsrmServiceProvider
     extends $FunctionalProvider<OsrmService, OsrmService, OsrmService>
     with $Provider<OsrmService> {
   OsrmServiceProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'osrmServiceProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'osrmServiceProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$osrmServiceHash();
@@ -99,15 +103,15 @@ final class VrpSolverProvider
     extends $FunctionalProvider<VrpSolver, VrpSolver, VrpSolver>
     with $Provider<VrpSolver> {
   VrpSolverProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'vrpSolverProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'vrpSolverProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$vrpSolverHash();
@@ -140,24 +144,27 @@ final routeOptimizerProvider = RouteOptimizerProvider._();
 
 /// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
 
-final class RouteOptimizerProvider extends $FunctionalProvider<
-        AsyncValue<RouteOptimizerInterface>,
-        RouteOptimizerInterface,
-        FutureOr<RouteOptimizerInterface>>
+final class RouteOptimizerProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<RouteOptimizerInterface>,
+          RouteOptimizerInterface,
+          FutureOr<RouteOptimizerInterface>
+        >
     with
         $FutureModifier<RouteOptimizerInterface>,
         $FutureProvider<RouteOptimizerInterface> {
   /// Returns GoogleRouteOptimizer if API key is configured, else VrpSolver.
   RouteOptimizerProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'routeOptimizerProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'routeOptimizerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$routeOptimizerHash();
@@ -165,8 +172,8 @@ final class RouteOptimizerProvider extends $FunctionalProvider<
   @$internal
   @override
   $FutureProviderElement<RouteOptimizerInterface> $createElement(
-          $ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
   FutureOr<RouteOptimizerInterface> create(Ref ref) {
@@ -174,7 +181,7 @@ final class RouteOptimizerProvider extends $FunctionalProvider<
   }
 }
 
-String _$routeOptimizerHash() => r'c3c79ecd6dc4aa7d8f1e1acd10084c3230c06e8b';
+String _$routeOptimizerHash() => r'b2dbeb2db9b50acbc6eaf0c1093a59032aa916f7';
 
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 
@@ -183,24 +190,27 @@ final geocodedOrdersProvider = GeocodedOrdersProvider._();
 
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 
-final class GeocodedOrdersProvider extends $FunctionalProvider<
-        AsyncValue<List<GeocodedOrder>>,
-        List<GeocodedOrder>,
-        FutureOr<List<GeocodedOrder>>>
+final class GeocodedOrdersProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<GeocodedOrder>>,
+          List<GeocodedOrder>,
+          FutureOr<List<GeocodedOrder>>
+        >
     with
         $FutureModifier<List<GeocodedOrder>>,
         $FutureProvider<List<GeocodedOrder>> {
   /// Geocodes all fetched orders. Expensive — cached until orders change.
   GeocodedOrdersProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'geocodedOrdersProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'geocodedOrdersProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$geocodedOrdersHash();
@@ -208,8 +218,8 @@ final class GeocodedOrdersProvider extends $FunctionalProvider<
   @$internal
   @override
   $FutureProviderElement<List<GeocodedOrder>> $createElement(
-          $ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
   FutureOr<List<GeocodedOrder>> create(Ref ref) {
@@ -217,7 +227,7 @@ final class GeocodedOrdersProvider extends $FunctionalProvider<
   }
 }
 
-String _$geocodedOrdersHash() => r'b5ac5edd82ceee0d62ef9da6123ec817b0c76c86';
+String _$geocodedOrdersHash() => r'7e6e52776ab9c96e260f3ef64bd331f98c81b9b3';
 
 /// Manages the optimized route state and handles marking stops as delivered.
 
@@ -229,15 +239,15 @@ final class RouteStateProvider
     extends $AsyncNotifierProvider<RouteState, List<DriverRoute>> {
   /// Manages the optimized route state and handles marking stops as delivered.
   RouteStateProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'routeStateProvider',
-          isAutoDispose: true,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'routeStateProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$routeStateHash();
@@ -258,11 +268,14 @@ abstract class _$RouteState extends $AsyncNotifier<List<DriverRoute>> {
   void runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<DriverRoute>>, List<DriverRoute>>;
-    final element = ref.element as $ClassProviderElement<
-        AnyNotifier<AsyncValue<List<DriverRoute>>, List<DriverRoute>>,
-        AsyncValue<List<DriverRoute>>,
-        Object?,
-        Object?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<DriverRoute>>, List<DriverRoute>>,
+              AsyncValue<List<DriverRoute>>,
+              Object?,
+              Object?
+            >;
     element.handleCreate(ref, build);
   }
 }

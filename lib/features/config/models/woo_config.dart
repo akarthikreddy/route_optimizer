@@ -18,8 +18,8 @@ class WooConfig {
   /// Google Cloud project ID (required when googleApiKey is set).
   final String googleProjectId;
 
-  bool get useGoogleOptimizer =>
-      googleApiKey.isNotEmpty && googleProjectId.isNotEmpty;
+  // Uses service account OAuth2 (assets/service_account.json).
+  bool get useGoogleOptimizer => googleProjectId.isNotEmpty;
 
   factory WooConfig.fromJson(Map<String, dynamic> json) => WooConfig(
         baseUrl: (json['base_url'] as String).replaceAll(RegExp(r'/$'), ''),

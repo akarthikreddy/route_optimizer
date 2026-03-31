@@ -24,6 +24,7 @@ dependencies:
 
   # Networking
   http: ^1.2.1
+  googleapis_auth: ^1.6.0
 
   # Storage
   shared_preferences: ^2.3.2
@@ -38,6 +39,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/woo_config.json
+    - assets/service_account.json
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,7 @@ import '../models/driver_route.dart';
 import '../models/geocoded_order.dart';
 import '../models/route_stop.dart';
 import '../services/geocoding_service.dart';
+import '../services/google_geocoding_service.dart';
 import '../services/google_route_optimizer.dart';
 import '../services/osrm_service.dart';
 import '../services/route_optimizer_interface.dart';
@@ -30,10 +31,7 @@ VrpSolver vrpSolver(Ref ref) =>
 Future<RouteOptimizerInterface> routeOptimizer(Ref ref) async {
   final wooConfig = await ref.watch(wooConfigProvider.future);
   if (wooConfig.useGoogleOptimizer) {
-    return GoogleRouteOptimizer(
-      apiKey: wooConfig.googleApiKey,
-      projectId: wooConfig.googleProjectId,
-    );
+    return GoogleRouteOptimizer(projectId: wooConfig.googleProjectId);
   }
   return ref.watch(vrpSolverProvider);
 }
@@ -41,21 +39,49 @@ Future<RouteOptimizerInterface> routeOptimizer(Ref ref) async {
 /// Geocodes all fetched orders. Expensive — cached until orders change.
 @riverpod
 Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
-  final orderList = await ref.watch(ordersProvider.future);
-  final geocoder = ref.watch(geocodingServiceProvider);
+  final orderList = await ref.watch(filteredOrdersProvider.future);
+  final wooConfig = await ref.watch(wooConfigProvider.future);
+
+  // Use Google Geocoding when API key is available — much more accurate for India.
+  final GoogleGeocodingService? googleGeocoder = wooConfig.googleApiKey.isNotEmpty
+      ? GoogleGeocodingService(apiKey: wooConfig.googleApiKey)
+      : null;
+  final nominatimGeocoder = ref.watch(geocodingServiceProvider);
 
   final geocoded = <GeocodedOrder>[];
   for (final order in orderList) {
     final b = order.billing;
     if (b.city.isEmpty && b.postcode.isEmpty) continue;
 
-    // Build progressively simpler queries — Indian door numbers (e.g.
-    // "2-2-1105/80") confuse geocoders so we try without them first.
-    final queries = _geocodeQueries(b);
     LatLng? location;
-    for (final q in queries) {
-      location = await geocoder.geocode(q);
-      if (location != null) break;
+    final country = b.country.isNotEmpty ? b.country : 'IN';
+
+    if (googleGeocoder != null) {
+      // Google: full address first for building-level accuracy,
+      // then pincode centroid as fallback.
+      if (b.address1.isNotEmpty || b.city.isNotEmpty) {
+        final parts = [b.address1, b.city, b.state, b.postcode, country]
+            .where((p) => p.isNotEmpty);
+        location = await googleGeocoder.geocode(parts.join(', '));
+      }
+      if (location == null && b.postcode.isNotEmpty) {
+        location = await googleGeocoder.geocodeByPostalCode(b.postcode, country);
+      }
+      // If Google failed entirely, fall back to Nominatim.
+      if (location == null && b.postcode.isNotEmpty) {
+        location = await nominatimGeocoder.geocodeByPostalCode(
+            b.postcode, country.toLowerCase());
+      }
+    } else {
+      // Nominatim: structured postalcode lookup, then city fallback.
+      if (b.postcode.isNotEmpty) {
+        location = await nominatimGeocoder.geocodeByPostalCode(
+            b.postcode, country.toLowerCase());
+      }
+      if (location == null && b.city.isNotEmpty) {
+        final parts = [b.city, b.state, b.country].where((p) => p.isNotEmpty);
+        location = await nominatimGeocoder.geocode(parts.join(', '));
+      }
     }
 
     if (location != null) {
@@ -73,37 +99,6 @@ Future<List<GeocodedOrder>> geocodedOrders(Ref ref) async {
   return geocoded;
 }
 
-/// Geocode using pincode only — Indian pincodes are unique 6-digit codes
-/// that map to a specific area. Locality names cause wrong-city matches
-/// (e.g. "Chanakyapuri" → Delhi instead of Hyderabad) so we ignore them.
-List<String> _geocodeQueries(WooBilling b) {
-  String join(List<String> parts) =>
-      parts.where((p) => p.isNotEmpty).join(', ');
-
-  return [
-    // 1. Pincode only — always correct, always unique in India
-    if (b.postcode.isNotEmpty) b.postcode,
-    // 2. Pincode + country (helps Nominatim skip non-Indian results)
-    if (b.postcode.isNotEmpty) join([b.postcode, b.country]),
-    // 3. City + state fallback (only when no pincode)
-    if (b.postcode.isEmpty) join([b.city, b.state, b.country]),
-  ].where((q) => q.isNotEmpty).toList();
-}
-
-/// Strips leading door/plot numbers from an Indian address line.
-/// e.g. "7-1-32/VL"          → "" (entire token is a door number → skip)
-///      "2-2-1105/80, Tilak Nagar" → "Tilak Nagar"
-///      "#D 607 Naramada block"    → "Naramada block"
-String _stripDoorNumber(String address) {
-  // Remove leading door number token: digits/hyphens/slashes + optional letters
-  // e.g. "7-1-32/VL" or "2-2-1105/80" or "#D 607"
-  final stripped = address
-      .replaceFirst(RegExp(r'^#?[\d\-/\\]+[A-Za-z]*\s*,?\s*'), '')
-      .replaceFirst(RegExp(r'^#[A-Za-z]\s*\d+\s*,?\s*'), '') // "#D 607 ..."
-      .trim();
-  // Only return if the result is meaningful (more than 3 characters)
-  return stripped.length > 3 ? stripped : '';
-}
 
 /// Manages the optimized route state and handles marking stops as delivered.
 @riverpod

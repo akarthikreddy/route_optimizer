@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/services.dart';
+import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/app_colors.dart';
@@ -8,24 +10,31 @@ import '../models/geocoded_order.dart';
 import '../models/route_stop.dart';
 import 'route_optimizer_interface.dart';
 
-/// Calls Google Cloud Route Optimization API (v1 optimizeTours).
+/// Calls Google Cloud Route Optimization API (v1 optimizeTours) via OAuth2.
 ///
 /// Setup:
 /// 1. Enable "Route Optimization API" in Google Cloud Console.
-/// 2. Create an API key restricted to Route Optimization API.
-/// 3. Fill google_api_key and google_project_id in assets/woo_config.json.
+/// 2. Create a service account, download JSON key → assets/service_account.json.
+/// 3. Fill google_project_id in assets/woo_config.json.
 ///
 /// Docs: https://cloud.google.com/route-optimization/docs
 class GoogleRouteOptimizer implements RouteOptimizerInterface {
-  const GoogleRouteOptimizer({
-    required this.apiKey,
-    required this.projectId,
-  });
+  const GoogleRouteOptimizer({required this.projectId});
 
-  final String apiKey;
   final String projectId;
 
   static const _baseUrl = 'https://routeoptimization.googleapis.com';
+  static const _scopes = ['https://www.googleapis.com/auth/cloud-platform'];
+
+  /// Loads service account credentials and returns a Bearer token.
+  Future<String> _getAccessToken() async {
+    final jsonStr = await rootBundle.loadString('assets/service_account.json');
+    final credentials = ServiceAccountCredentials.fromJson(jsonStr);
+    final client = await clientViaServiceAccount(credentials, _scopes);
+    final token = client.credentials.accessToken.data;
+    client.close();
+    return token;
+  }
 
   @override
   Future<List<DriverRoute>> optimize({
@@ -34,8 +43,9 @@ class GoogleRouteOptimizer implements RouteOptimizerInterface {
     required double kmCapPerDriver,
     required LatLng depot,
   }) async {
+    final token = await _getAccessToken();
     final uri = Uri.parse(
-      '$_baseUrl/v1/projects/$projectId:optimizeTours?key=$apiKey',
+      '$_baseUrl/v1/projects/$projectId:optimizeTours',
     );
 
     final body = _buildRequest(
@@ -47,7 +57,10 @@ class GoogleRouteOptimizer implements RouteOptimizerInterface {
 
     final response = await http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
       body: jsonEncode(body),
     );
 
@@ -77,6 +90,11 @@ class GoogleRouteOptimizer implements RouteOptimizerInterface {
       }
     };
 
+    // Cap orders per driver: gives 30% headroom above equal share so Google
+    // can cluster geographically (e.g. 4+6 instead of 5+5) while still
+    // forcing all drivers to be used.
+    final maxPerDriver = ((orders.length / driverCount) * 1.3).ceil();
+
     final shipments = orders.asMap().entries.map((e) {
       final order = e.value;
       return {
@@ -87,10 +105,13 @@ class GoogleRouteOptimizer implements RouteOptimizerInterface {
               'latitude': order.location.latitude,
               'longitude': order.location.longitude,
             },
-            // 3-minute service time per stop
             'duration': '180s',
           }
         ],
+        'loadDemands': {
+          'orders': {'amount': '1'},
+        },
+        'penaltyCost': 1000000.0,
       };
     }).toList();
 
@@ -99,8 +120,8 @@ class GoogleRouteOptimizer implements RouteOptimizerInterface {
         'label': 'driver_${i + 1}',
         'startWaypoint': depotWaypoint,
         'endWaypoint': depotWaypoint,
-        'routeDistanceLimit': {
-          'maxMeters': (kmCapPerDriver * 1000).toInt(),
+        'loadLimits': {
+          'orders': {'maxLoad': '$maxPerDriver'},
         },
         'costPerKilometer': 1.0,
       };
